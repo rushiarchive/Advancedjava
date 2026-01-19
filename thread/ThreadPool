@@ -1,0 +1,71 @@
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+
+// A class with a shared resource (counter) that needs synchronization
+class SynchronizedCounter {
+    private int count = 0;
+
+    // The 'synchronized' keyword ensures that only one thread can execute this
+    // method at a time on the same object instance.
+    public synchronized void increment() {
+        count++;
+        System.out.println(Thread.currentThread().getName() + " incremented counter to: " + count);
+    }
+
+    public synchronized int getCount() {
+        return count;
+    }
+}
+
+// A task for the thread pool to execute
+class CounterTask implements Runnable {
+    private final SynchronizedCounter counter;
+
+    public CounterTask(SynchronizedCounter counter) {
+        this.counter = counter;
+    }
+
+//    @Override
+    public void run() {
+        for (int i = 0; i < 5; i++) {
+            counter.increment();
+            try {
+                // Simulate some work
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
+}
+
+public class ThreadPoolSynchronizationDemo {
+    public static void main(String[] args) {
+        // 1. Create a thread pool with a fixed number of threads (e.g., 3)
+        ExecutorService executorService = Executors.newFixedThreadPool(3);
+
+        // 2. Create a single shared resource instance
+        SynchronizedCounter sharedCounter = new SynchronizedCounter();
+
+        // 3. Submit multiple tasks to the thread pool, all using the same shared resource
+        for (int i = 0; i < 10; i++) {
+            executorService.submit(new CounterTask(sharedCounter));
+        }
+
+        // 4. Initiate an orderly shutdown of the pool (no new tasks accepted)
+        executorService.shutdown();
+
+        try {
+            // 5. Wait for all submitted tasks to complete execution
+            if (!executorService.awaitTermination(60, TimeUnit.SECONDS)) {
+                System.err.println("Thread pool did not terminate in time.");
+            }
+        } catch (InterruptedException e) {
+            //Thread.currentThread().interrupt();
+        }
+
+        // 6. Print the final count
+        System.out.println("\nAll tasks finished. Final counter value: " + sharedCounter.getCount());
+    }
+}
